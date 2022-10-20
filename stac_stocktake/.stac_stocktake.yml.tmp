@@ -1,0 +1,40 @@
+LOGGING:
+  LEVEL: INFO
+
+
+ELASTICSEARCH:
+  SESSION_KWARGS:
+    hosts:
+      - localhost:9200
+    use_ssl: false
+    verify_certs: false
+    ssl_show_warn: false
+
+RABBIT:
+  SESSION_KWARGS:
+    USER: guest
+    PASSWORD: *****
+    VHOST: default
+    HOST: localhost
+    HEARTBEAT: 100
+    EXCHANGE:
+      NAME: exchange_name
+      TYPE: fanout
+  ROUTING_KEY: rounting_key
+
+STOCKTAKE:
+  FBI_INDEX: fbi
+  STAC_INDEX: stac
+  STATE_INDEX: stock
+
+GENERATOR:
+  generator: asset
+
+  collection_descriptions:
+    root_directory: descriptions/
+
+  outputs:
+    - name: json_file
+      filepath: tests/file-io/assets.json
+    - name: text_file
+      filepath: tests/file-io/assets.txt
