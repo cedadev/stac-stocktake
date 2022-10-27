@@ -1,31 +1,19 @@
+GENERAL:
+  FBI_INDEX: fbi
+  STAC_INDEX: stac
+  STATE_INDEX: stock
+
 LOGGING:
   LEVEL: INFO
-
 
 ELASTICSEARCH:
   SESSION_KWARGS:
     hosts:
       - localhost:9200
+    timeout: 60
     use_ssl: false
     verify_certs: false
     ssl_show_warn: false
-
-RABBIT:
-  SESSION_KWARGS:
-    USER: guest
-    PASSWORD: *****
-    VHOST: default
-    HOST: localhost
-    HEARTBEAT: 100
-    EXCHANGE:
-      NAME: exchange_name
-      TYPE: fanout
-  ROUTING_KEY: rounting_key
-
-STOCKTAKE:
-  FBI_INDEX: fbi
-  STAC_INDEX: stac
-  STATE_INDEX: stock
 
 GENERATOR:
   generator: asset

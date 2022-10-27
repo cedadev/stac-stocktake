@@ -2,3 +2,4 @@ __pycache__
 .stac_stocktake.yml
 *.egg-info
 .DS_Store
+descriptions

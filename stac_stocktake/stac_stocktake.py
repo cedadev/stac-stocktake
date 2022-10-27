@@ -15,8 +15,6 @@ import yaml
 from elasticsearch_dsl import Date, Document, Integer, Object, Search, connections
 from stac_generator.scripts.stac_generator import load_generator
 
-from stac_stocktake.rabbit import RabbitProducer
-
 log = logging.getLogger(__name__)
 
 
@@ -38,18 +36,15 @@ class StacStocktake:
         with open(config_file, encoding="utf-8") as reader:
             conf = yaml.safe_load(reader)
 
-        es_conf = conf.get("ELASTICSEARCH")
-        stock_conf = conf.get("STOCKTAKE")
-        rabbit_conf = conf.get("RABBIT")
-        generator_conf = conf.get("GENERATOR")
+        general_conf = conf.get("GENERAL")
         log_conf = conf.get("LOGGING")
+        es_conf = conf.get("ELASTICSEARCH")
+        generator_conf = conf.get("GENERATOR")
 
         logging.basicConfig(
             format="%(asctime)s @%(name)s [%(levelname)s]:    %(message)s",
             level=logging.getLevelName(log_conf.get("LEVEL")),
         )
-
-        self.producer = RabbitProducer(rabbit_conf.get("SESSION_KWARGS"))
 
         self.generator = load_generator(generator_conf)
 
@@ -57,23 +52,13 @@ class StacStocktake:
 
         state_search = self.State()
         state_search._index._using = "es"
-        state_search._index._name = stock_conf.get("STATE_INDEX")
+        state_search._index._name = general_conf.get("STATE_INDEX")
 
-        self.state = self.State.get(id=1, ignore=404)
-
-        if not self.state:
-            self.state = self.State(
-                fbi_record={"path": "/"},
-                stac_asset={"properties": {"uri": "/"}},
-                new=0,
-                deleted=0,
-                same=0,
-            )
-            self.state.save()
+        self.state = self.get_initial_state()
 
         # start iterators to scan fbi and filesystem
-        self.fbi_records = self.get_fbi_records(index=stock_conf.get("FBI_INDEX"))
-        self.stac_assets = self.get_stac_assets(index=stock_conf.get("STAC_INDEX"))
+        self.fbi_records = self.get_fbi_records(index=general_conf.get("FBI_INDEX"))
+        self.stac_assets = self.get_stac_assets(index=general_conf.get("STAC_INDEX"))
 
         # read first records.
         self.next_fbi_record()
@@ -95,57 +80,69 @@ class StacStocktake:
             self.created_at = datetime.now()
             return super().save(**kwargs)
 
+    def get_initial_state(self) -> list:
+        """
+        Get the initial state of the stocktake or
+        create it if it doesn't yet exist.
+
+        :return: current stocktake state
+        """
+
+        state = self.State.get(id=1, ignore=404)
+
+        if not state:
+            state = self.State(
+                fbi_record={"path": "/"},
+                stac_asset={"properties": {"uri": "/"}},
+                new=0,
+                deleted=0,
+                same=0,
+            )
+            state.save()
+
+        return state
+
     def get_fbi_records(self, index: str) -> list:
         """
         Get all the fbi record with a path between after and stop.
 
-        :param after: fbi records after this path will be returned
-        :param stop: fbi records before and including this path will be returned
-        :return: list of relevant fbi records
+        :param index: Index to search on
+        :return: relevant fbi records
         """
 
         log.info("Querying FBI.")
 
         query = (
             Search(using="es", index=index)
-            .extra(size=10000)
             .source(exclude=["phenomena"])
             .filter("term", type="file")
             .sort("path.keyword")
             .filter("range", path__keyword={"gt": self.fbi_path, "lte": "~"})
+            .params(preserve_order=True)
         )
 
-        response = query.execute()
-
-        log.info("FBI count: %s", response.hits.total)
-
-        return iter(response.hits)
+        yield from query.scan()
 
     def get_stac_assets(self, index: str) -> list:
         """
         Get all the STAC Asset with a path between after and stop.
 
-        :param after: STAC Assets after this path will be returned
-        :param stop: STAC Assets before and including this path will be returned
-        :return: list of relevant STAC Assets
+        :param index: Index to search on
+        :return: relevant STAC Assets
         """
 
         log.info("Querying STAC.")
 
         query = (
             Search(using="es", index=index)
-            .extra(size=10000)
             .sort("properties.uri.keyword")
             .filter(
                 "range", properties__uri__keyword={"gt": self.stac_path, "lte": "~"}
             )
+            .params(preserve_order=True)
         )
 
-        response = query.execute()
-
-        log.info("STAC Asset count: %s", response.hits.total)
-
-        return iter(response.hits)
+        yield from query.scan()
 
     def next_fbi_record(self):
         """
@@ -182,10 +179,6 @@ class StacStocktake:
 
         log.info("ADD_MISSING_STAC_ASSET: %s", self.fbi_path)
 
-        # message = {"uri": self.fbi_path}
-
-        # self.producer.publish(self.rabbit_conf.get("ROUTING_KEY"), message)
-
         self.generator.process(self.fbi_path)
 
     def delete_stac_asset(self):
@@ -193,8 +186,6 @@ class StacStocktake:
         Remove a STAC Asset
         """
         pass
-
-    # Could add compare class for data within STAC
 
     def run(self):
         """
