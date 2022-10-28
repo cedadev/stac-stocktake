@@ -10,8 +10,10 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
+from typing import Union
 
 import yaml
+from elasticsearch.exceptions import RequestError
 from elasticsearch_dsl import Date, Document, Integer, Object, Search, connections
 from stac_generator.scripts.stac_generator import load_generator
 
@@ -69,36 +71,72 @@ class StacStocktake:
         State of the stocktake store in elasticsearch
         """
 
+        run = Integer()
         fbi_record = Object()
         stac_asset = Object()
         new = Integer()
         deleted = Integer()
         same = Integer()
-        created_at = Date()
+        start_time = Date()
+        last_save_time = Date()
 
         def save(self, **kwargs):
-            self.created_at = datetime.now()
+            self.last_save_time = datetime.now()
             return super().save(**kwargs)
 
-    def get_initial_state(self) -> list:
+    def get_initial_state(self) -> dict:
         """
-        Get the initial state of the stocktake or
+        Get the current state of the stocktake or
         create it if it doesn't yet exist.
 
         :return: current stocktake state
         """
 
-        state = self.State.get(id=1, ignore=404)
+        state = None
+
+        try:
+
+            state_search = self.State.search().sort("-run").extra(size=1)
+
+            state_result = state_search.execute()
+
+            if state_result.success() and state_result.hits.total != 0:
+                state = state_result.hits[0]
+
+            if (
+                state.stac_asset["properties"]["uri"] != "~"
+                or state.fbi_record["path"] != "~"
+            ):
+                return state
+
+        except RequestError:
+            pass
+
+        return self.create_new_state(state)
+
+    def create_new_state(self, state: Union[State, None]) -> dict:
+        """
+        Create the initial state of the stocktake.
+
+        :return: initial stocktake state
+        """
 
         if not state:
-            state = self.State(
-                fbi_record={"path": "/"},
-                stac_asset={"properties": {"uri": "/"}},
-                new=0,
-                deleted=0,
-                same=0,
-            )
-            state.save()
+            self.State.init()
+            run = 1
+        else:
+            run = state.run + 1
+
+        state = self.State(
+            run=run,
+            fbi_record={"path": "/"},
+            stac_asset={"properties": {"uri": "/"}},
+            new=0,
+            deleted=0,
+            same=0,
+            start_time=datetime.now(),
+        )
+        state.save()
 
         return state
 
@@ -118,10 +156,15 @@ class StacStocktake:
             .filter("term", type="file")
             .sort("path.keyword")
             .filter("range", path__keyword={"gt": self.fbi_path, "lte": "~"})
-            .params(preserve_order=True)
+            .extra(size=10000)
+            # .params(preserve_order=True)
         )
 
-        yield from query.scan()
+        # yield from query.scan()
+
+        response = query.execute()
+
+        yield from response.hits
 
     def get_stac_assets(self, index: str) -> list:
         """
