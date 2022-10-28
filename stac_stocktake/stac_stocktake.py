@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Union
 
 import yaml
-from elasticsearch.exceptions import RequestError
+from elasticsearch.exceptions import NotFoundError
 from elasticsearch_dsl import Date, Document, Integer, Object, Search, connections
 from stac_generator.scripts.stac_generator import load_generator
 
@@ -109,7 +109,7 @@ class StacStocktake:
             ):
                 return state
 
-        except RequestError:
+        except NotFoundError:
             pass
 
         return self.create_new_state(state)
@@ -152,7 +152,7 @@ class StacStocktake:
 
         query = (
             Search(using="es", index=index)
-            .source(exclude=["phenomena"])
+            .source(["path"])
             .filter("term", type="file")
             .sort("path.keyword")
             .filter("range", path__keyword={"gt": self.fbi_path, "lte": "~"})
@@ -178,6 +178,7 @@ class StacStocktake:
 
         query = (
             Search(using="es", index=index)
+            .source(["properties.uri"])
             .sort("properties.uri.keyword")
             .filter(
                 "range", properties__uri__keyword={"gt": self.stac_path, "lte": "~"}
