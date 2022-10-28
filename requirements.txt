@@ -16,7 +16,6 @@ certifi==2021.5.30
 chardet==4.0.0
 ceda-directory-tree==1.0.2
 docutils==0.16
-elasticsearch==7.13.1
 fsspec==2021.10.0
 gcsfs==2021.10.0
 idna==2.10
@@ -26,14 +25,11 @@ jmespath==0.10.0
 MarkupSafe==2.0.1
 multidict==5.1.0
 packaging==20.9
-pika==1.2.0
 pydantic==1.8.2
 Pygments==2.9.0
 pyparsing==2.4.7
-python-dateutil==2.8.2
 python-magic==0.4.25
 pytz==2021.1
-PyYAML==5.4.1
 requests==2.25.1
 s3transfer==0.5.0
 siphon==0.9
