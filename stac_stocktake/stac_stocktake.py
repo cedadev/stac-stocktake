@@ -156,15 +156,10 @@ class StacStocktake:
             .filter("term", type="file")
             .sort("path.keyword")
             .filter("range", path__keyword={"gt": self.fbi_path, "lte": "~"})
-            .extra(size=10000)
-            # .params(preserve_order=True)
+            .params(preserve_order=True)
         )
 
-        # yield from query.scan()
-
-        response = query.execute()
-
-        yield from response.hits
+        yield from query.scan()
 
     def get_stac_assets(self, index: str) -> list:
         """
