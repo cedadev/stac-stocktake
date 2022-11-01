@@ -136,7 +136,7 @@ class StacStocktake:
             same=0,
             start_time=datetime.now(),
         )
-        state.save()
+        # state.save()
 
         return state
 
@@ -156,8 +156,11 @@ class StacStocktake:
             .filter("term", type="file")
             .sort("path.keyword")
             .filter("range", path__keyword={"gt": self.fbi_path, "lte": "~"})
-            .extra(size=20000)
             # .params(preserve_order=True)
+            .extra(
+                size=10000,
+                search_after=["/badc/CDs/aase9192/data/model/.in.ia920201.g12."],
+            )
         )
 
         # yield from query.scan()
@@ -183,10 +186,18 @@ class StacStocktake:
             .filter(
                 "range", properties__uri__keyword={"gt": self.stac_path, "lte": "~"}
             )
-            .params(preserve_order=True)
+            # .params(preserve_order=True)
+            .extra(
+                size=1000,
+                search_after=["/badc/CDs/aase9192/data/model/.in.ia920201.g12."],
+            )
         )
 
-        yield from query.scan()
+        # yield from query.scan()
+
+        response = query.execute()
+
+        yield from response.hits
 
     def next_fbi_record(self):
         """
@@ -223,7 +234,7 @@ class StacStocktake:
 
         log.info("ADD_MISSING_STAC_ASSET: %s", self.fbi_path)
 
-        self.generator.process(self.fbi_path)
+        # self.generator.process(self.fbi_path)
 
     def delete_stac_asset(self):
         """
@@ -238,15 +249,16 @@ class StacStocktake:
         i = 0
         while True:
             # print and save every 1000 items
+            log.info("%s: %s  ---  %s", i, self.fbi_path, self.stac_path)
             if i % 1000 == 0:
                 log.info("%s: %s  ---  %s", i, self.fbi_path, self.stac_path)
-                self.state.save()
+                # self.state.save()
             i += 1
 
             # stop if end of both files
             if self.fbi_path == "~" and self.stac_path == "~":
                 log.info("FIN")
-                self.state.save()
+                # self.state.save()
                 break
 
             # if fbi has ended or the fbi record is ahead and there are stac records left,
