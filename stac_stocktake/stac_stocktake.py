@@ -156,10 +156,15 @@ class StacStocktake:
             .filter("term", type="file")
             .sort("path.keyword")
             .filter("range", path__keyword={"gt": self.fbi_path, "lte": "~"})
-            .params(preserve_order=True)
+            .extra(size=20000)
+            # .params(preserve_order=True)
         )
 
-        yield from query.scan()
+        # yield from query.scan()
+
+        response = query.execute()
+
+        yield from response.hits
 
     def get_stac_assets(self, index: str) -> list:
         """
@@ -249,12 +254,16 @@ class StacStocktake:
             if self.stac_path == "~" or self.stac_path > self.fbi_path:
                 self.create_stac_asset()
                 self.next_fbi_record()
-                continue
 
             # if stac has ended or the stac asset is behind the fbi then we need
             # to creae a new asset.
-            if self.fbi_path == "~" or self.stac_path < self.fbi_path:
+            elif self.fbi_path == "~" or self.stac_path < self.fbi_path:
                 self.delete_stac_asset()
+                self.next_stac_asset()
+
+            # if both record and asset are about the same path then move on.
+            elif self.fbi_path == self.stac_path:
+                self.next_fbi_record()
                 self.next_stac_asset()
 
 
