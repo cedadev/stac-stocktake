@@ -162,7 +162,9 @@ class StacStocktake:
             # .params(preserve_order=True)
             .extra(
                 size=10000,
-                search_after=["/badc/CDs/aase9192/data/model/.in.ia920201.g12."],
+                search_after=[
+                    "/badc/CDs/berlin_strat/data/10x10/height_10/y89/m8907/d890702.dat"
+                ],
             )
         )
 
@@ -170,9 +172,9 @@ class StacStocktake:
 
         response = query.execute()
 
-        yield from response.hits
+        log.info(f"FBI query took {response.took} seconds")
 
-        log.info(f"FBI query took {perf_counter() - tic:0.4f} seconds")
+        yield from response.hits
 
     def get_stac_assets(self, index: str) -> list:
         """
@@ -196,7 +198,9 @@ class StacStocktake:
             # .params(preserve_order=True)
             .extra(
                 size=1000,
-                search_after=["/badc/CDs/aase9192/data/model/.in.ia920201.g12."],
+                search_after=[
+                    "/badc/CDs/berlin_strat/data/10x10/height_10/y89/m8907/d890702.dat"
+                ],
             )
         )
 
@@ -204,9 +208,9 @@ class StacStocktake:
 
         response = query.execute()
 
-        yield from response.hits
+        log.info(f"STAC query took {response.took} seconds")
 
-        log.info(f"STAC query took {perf_counter() - tic:0.4f} seconds")
+        yield from response.hits
 
     def next_fbi_record(self):
         """
