@@ -17,6 +17,8 @@ from elasticsearch.exceptions import NotFoundError
 from elasticsearch_dsl import Date, Document, Integer, Object, Search, connections
 from stac_generator.scripts.stac_generator import load_generator
 
+from stac_stocktake.rabbit import RabbitProducer
+
 log = logging.getLogger(__name__)
 
 
@@ -41,14 +43,19 @@ class StacStocktake:
         general_conf = conf.get("GENERAL")
         log_conf = conf.get("LOGGING")
         es_conf = conf.get("ELASTICSEARCH")
-        generator_conf = conf.get("GENERATOR")
 
         logging.basicConfig(
             format="%(asctime)s @%(name)s [%(levelname)s]:    %(message)s",
             level=logging.getLevelName(log_conf.get("LEVEL")),
         )
 
-        self.generator = load_generator(generator_conf)
+        if "RABBIT" in conf:
+            rabbit_conf = conf.get("RABBIT")
+            self.producer = RabbitProducer(rabbit_conf.get("SESSION_KWARGS"))
+
+        else:
+            generator_conf = conf.get("GENERATOR")
+            self.generator = load_generator(generator_conf)
 
         connections.create_connection(alias="es", **es_conf.get("SESSION_KWARGS"))
 
@@ -218,7 +225,15 @@ class StacStocktake:
 
         log.info("ADD_MISSING_STAC_ASSET: %s", self.fbi_path)
 
-        self.generator.process(self.fbi_path)
+        if hasattr(self, "producer"):
+
+            message = {"uri": self.fbi_path}
+
+            self.producer.publish(message)
+
+        else:
+
+            self.generator.process(self.fbi_path)
 
     def delete_stac_asset(self):
         """

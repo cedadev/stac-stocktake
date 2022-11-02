@@ -6,6 +6,18 @@ GENERAL:
 LOGGING:
   LEVEL: INFO
 
+RABBIT:
+  SESSION_KWARGS:
+    USER: guest
+    PASSWORD: *****
+    VHOST: default
+    HOST: localhost
+    HEARTBEAT: 100
+    EXCHANGE:
+      NAME: exchange_name
+      TYPE: fanout
+    ROUTING_KEY: rounting_key
+
 ELASTICSEARCH:
   SESSION_KWARGS:
     hosts:
