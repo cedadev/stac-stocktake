@@ -10,6 +10,7 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
+from time import perf_counter
 from typing import Union
 
 import yaml
@@ -58,7 +59,7 @@ class StacStocktake:
 
         self.state = self.get_initial_state()
 
-        # start iterators to scan fbi and filesystem
+        # scan fbi and stac asset catalog
         self.fbi_records = self.get_fbi_records(index=general_conf.get("FBI_INDEX"))
         self.stac_assets = self.get_stac_assets(index=general_conf.get("STAC_INDEX"))
 
@@ -136,7 +137,7 @@ class StacStocktake:
             same=0,
             start_time=datetime.now(),
         )
-        # state.save()
+        state.save()
 
         return state
 
@@ -149,6 +150,8 @@ class StacStocktake:
         """
 
         log.info("Querying FBI.")
+
+        tic = perf_counter()
 
         query = (
             Search(using="es", index=index)
@@ -169,6 +172,8 @@ class StacStocktake:
 
         yield from response.hits
 
+        log.info(f"FBI query took {perf_counter() - tic:0.4f} seconds")
+
     def get_stac_assets(self, index: str) -> list:
         """
         Get all the STAC Asset with a path between after and stop.
@@ -178,6 +183,8 @@ class StacStocktake:
         """
 
         log.info("Querying STAC.")
+
+        tic = perf_counter()
 
         query = (
             Search(using="es", index=index)
@@ -198,6 +205,8 @@ class StacStocktake:
         response = query.execute()
 
         yield from response.hits
+
+        log.info(f"STAC query took {perf_counter() - tic:0.4f} seconds")
 
     def next_fbi_record(self):
         """
@@ -234,7 +243,7 @@ class StacStocktake:
 
         log.info("ADD_MISSING_STAC_ASSET: %s", self.fbi_path)
 
-        # self.generator.process(self.fbi_path)
+        self.generator.process(self.fbi_path)
 
     def delete_stac_asset(self):
         """
@@ -249,16 +258,15 @@ class StacStocktake:
         i = 0
         while True:
             # print and save every 1000 items
-            log.info("%s: %s  ---  %s", i, self.fbi_path, self.stac_path)
             if i % 1000 == 0:
                 log.info("%s: %s  ---  %s", i, self.fbi_path, self.stac_path)
-                # self.state.save()
+                self.state.save()
             i += 1
 
             # stop if end of both files
             if self.fbi_path == "~" and self.stac_path == "~":
                 log.info("FIN")
-                # self.state.save()
+                self.state.save()
                 break
 
             # if fbi has ended or the fbi record is ahead and there are stac records left,
