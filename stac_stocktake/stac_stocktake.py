@@ -10,7 +10,6 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
-from time import perf_counter
 from typing import Union
 
 import yaml
@@ -151,30 +150,16 @@ class StacStocktake:
 
         log.info("Querying FBI.")
 
-        tic = perf_counter()
-
         query = (
             Search(using="es", index=index)
             .source(["path"])
             .filter("term", type="file")
             .sort("path.keyword")
             .filter("range", path__keyword={"gt": self.fbi_path, "lte": "~"})
-            # .params(preserve_order=True)
-            .extra(
-                size=10000,
-                search_after=[
-                    "/badc/CDs/berlin_strat/data/10x10/height_30/y86/m8602/d860218.dat"
-                ],
-            )
+            .params(preserve_order=True)
         )
 
-        # yield from query.scan()
-
-        response = query.execute()
-
-        log.info(f"FBI query took {perf_counter() - tic:0.4f} seconds")
-
-        yield from response.hits
+        yield from query.scan()
 
     def get_stac_assets(self, index: str) -> list:
         """
@@ -186,8 +171,6 @@ class StacStocktake:
 
         log.info("Querying STAC.")
 
-        tic = perf_counter()
-
         query = (
             Search(using="es", index=index)
             .source(["properties.uri"])
@@ -195,22 +178,10 @@ class StacStocktake:
             .filter(
                 "range", properties__uri__keyword={"gt": self.stac_path, "lte": "~"}
             )
-            # .params(preserve_order=True)
-            .extra(
-                size=1000,
-                search_after=[
-                    "/badc/CDs/berlin_strat/data/10x10/height_30/y86/m8602/d860218.dat"
-                ],
-            )
+            .params(preserve_order=True)
         )
 
-        # yield from query.scan()
-
-        response = query.execute()
-
-        log.info(f"STAC query took {perf_counter() - tic:0.4f} seconds")
-
-        yield from response.hits
+        yield from query.scan()
 
     def next_fbi_record(self):
         """
