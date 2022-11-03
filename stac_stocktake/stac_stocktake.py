@@ -81,6 +81,7 @@ class StacStocktake:
         run = Integer()
         fbi_record = Object()
         stac_asset = Object()
+        count = Integer()
         new = Integer()
         deleted = Integer()
         same = Integer()
@@ -138,6 +139,7 @@ class StacStocktake:
             run=run,
             fbi_record={"path": "/"},
             stac_asset={"properties": {"uri": "/"}},
+            count=0,
             new=0,
             deleted=0,
             same=0,
@@ -163,10 +165,20 @@ class StacStocktake:
             .filter("term", type="file")
             .sort("path.keyword")
             .filter("range", path__keyword={"gt": self.fbi_path, "lte": "~"})
-            .params(preserve_order=True)
+            # .params(preserve_order=True)
+            .extra(
+                size=10000,
+                search_after=[
+                    "/badc/CDs/berlin_strat/data/10x10/height_50/y82/m8202.dat"
+                ],
+            )
         )
 
-        yield from query.scan()
+        # yield from query.scan()
+
+        response = query.execute()
+
+        yield from response.hits
 
     def get_stac_assets(self, index: str) -> list:
         """
@@ -185,10 +197,20 @@ class StacStocktake:
             .filter(
                 "range", properties__uri__keyword={"gt": self.stac_path, "lte": "~"}
             )
-            .params(preserve_order=True)
+            # .params(preserve_order=True)
+            .extra(
+                size=10000,
+                search_after=[
+                    "/badc/CDs/berlin_strat/data/10x10/height_50/y82/m8202.dat"
+                ],
+            )
         )
 
-        yield from query.scan()
+        # yield from query.scan()
+
+        response = query.execute()
+
+        yield from response.hits
 
     def next_fbi_record(self):
         """
@@ -245,13 +267,14 @@ class StacStocktake:
         """
         Compare the STAC Assets and FBI records
         """
-        i = 0
         while True:
             # print and save every 1000 items
-            if i % 1000 == 0:
-                log.info("%s: %s  ---  %s", i, self.fbi_path, self.stac_path)
+            if self.state.count % 1000 == 0:
+                log.info(
+                    "%s: %s  ---  %s", self.state.count, self.fbi_path, self.stac_path
+                )
                 self.state.save()
-            i += 1
+            self.state.count += 1
 
             # stop if end of both files
             if self.fbi_path == "~" and self.stac_path == "~":
