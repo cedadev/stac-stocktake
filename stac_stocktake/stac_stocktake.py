@@ -10,7 +10,7 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Union
+from typing import Iterator, Union
 
 import yaml
 from elasticsearch.exceptions import NotFoundError
@@ -30,6 +30,7 @@ class StacStocktake:
 
     def __init__(self) -> None:
 
+        # Load configuration
         config_file = os.environ.get("STAC_STOCKTAKE_CONFIGURATION_FILE")
         if not config_file:
             config_file = os.path.join(
@@ -49,7 +50,7 @@ class StacStocktake:
             level=logging.getLevelName(log_conf.get("LEVEL")),
         )
 
-        # Either set up a rabbit producer or local stac generator
+        # Create either a rabbit producer or local stac generator
         if "RABBIT" in conf:
             rabbit_conf = conf.get("RABBIT")
             self.producer = RabbitProducer(rabbit_conf.get("SESSION_KWARGS"))
@@ -66,17 +67,14 @@ class StacStocktake:
 
         self.state = self.get_initial_state()
 
-        self.previous_fbi_record = self.state.fbi_record
-        self.previous_stac_asset = self.state.stac_asset
-
         self.fbi_index = general_conf.get("FBI_INDEX")
         self.stac_index = general_conf.get("STAC_INDEX")
 
         # scan fbi and stac asset catalog
-        self.fbi_records = self.get_fbi_records()
-        self.stac_assets = self.get_stac_assets()
+        self.fbi_records = self.get_fbi_records(self.state.fbi_record["path"])
+        self.stac_assets = self.get_stac_assets(self.state.stac_asset["stac_asset"])
 
-        # read first records.
+        # read first record and asset
         self.next_fbi_record()
         self.next_stac_asset()
 
@@ -113,10 +111,10 @@ class StacStocktake:
 
             state_search = self.State.search().sort("-run").extra(size=1)
 
-            state_result = state_search.execute()
+            response = state_search.execute()
 
-            if state_result.success() and state_result.hits.total != 0:
-                state = state_result.hits[0]
+            if response.success() and response.hits.total != 0:
+                state = response.hits[0]
 
             if (
                 state.stac_asset["properties"]["uri"] != "~"
@@ -156,11 +154,11 @@ class StacStocktake:
 
         return state
 
-    def get_fbi_records(self) -> list:
+    def get_fbi_records(self, search_after: str) -> Iterator[dict]:
         """
-        Get all the fbi record with a path between after and stop.
+        Get the next 10k FBI records with a path after `search_after`.
 
-        :param index: Index to search on
+        :param search_after: path to search after
         :return: relevant fbi records
         """
 
@@ -170,12 +168,12 @@ class StacStocktake:
             Search(using="es", index=self.fbi_index)
             .source(["path"])
             .filter("term", type="file")
-            .sort(["path.keyword"])
+            .sort("path.keyword")
             .extra(size=10000)
         )
 
-        if self.previous_fbi_path:
-            query = query.extra(search_after=[self.previous_fbi_path])
+        if search_after:
+            query = query.extra(search_after=[search_after])
 
         response = query.execute()
 
@@ -185,11 +183,11 @@ class StacStocktake:
         else:
             yield {"path": "~"}
 
-    def get_stac_assets(self) -> list:
+    def get_stac_assets(self, search_after: str) -> Iterator[dict]:
         """
-        Get all the STAC Asset with a path between after and stop.
+        Get the next 10k STAC Asset with a uri after `search_after`.
 
-        :param index: Index to search on
+        :param search_after: uri to search after
         :return: relevant STAC Assets
         """
 
@@ -202,8 +200,8 @@ class StacStocktake:
             .extra(size=10000)
         )
 
-        if self.previous_stac_path:
-            query = query.extra(search_after=[self.previous_stac_path])
+        if search_after:
+            query = query.extra(search_after=[search_after])
 
         response = query.execute()
 
@@ -221,14 +219,17 @@ class StacStocktake:
 
         self.state.fbi_record = next(self.fbi_records, {"properties": {"uri": ""}})
 
+        # if we reach the end of the fbi records get the next 10k results
+        if not self.fbi_path:
+            self.fbi_records = self.get_fbi_records(previous_fbi_record["path"])
+            self.next_fbi_record()
+
+        # if the documents' sort is empty you have reached the end of the search
         if (
             hasattr(self.state.fbi_record, "meta")
             and not self.state.fbi_record.meta.sort[0]
         ):
             self.state.fbi_record = {"path": "~"}
-
-        # must set previous fbi record after next() as fbi_records is an iterator
-        self.previous_fbi_record = previous_fbi_record
 
     def next_stac_asset(self):
         """
@@ -238,14 +239,19 @@ class StacStocktake:
 
         self.state.stac_asset = next(self.stac_assets, {"properties": {"uri": ""}})
 
+        # if we reach the end of the stac assets get the next 10k results
+        if not self.stac_path:
+            self.stac_assets = self.get_stac_assets(
+                previous_stac_asset["properties"]["uri"]
+            )
+            self.next_stac_asset()
+
+        # if the documents' sort is empty you have reached the end of the search
         if (
             hasattr(self.state.stac_asset, "meta")
             and not self.state.stac_asset.meta.sort[0]
         ):
             self.state.stac_asset = {"properties": {"uri": "~"}}
-
-        # must set previous stac asset after next() as stac_assets is an iterator
-        self.previous_stac_asset = previous_stac_asset
 
     @property
     def fbi_path(self):
@@ -260,20 +266,6 @@ class StacStocktake:
         Get the path from the stac asset
         """
         return self.state.stac_asset["properties"]["uri"]
-
-    @property
-    def previous_fbi_path(self):
-        """
-        Get the previous path from the fbi record
-        """
-        return self.previous_fbi_record["path"]
-
-    @property
-    def previous_stac_path(self):
-        """
-        Get the previous path from the stac asset
-        """
-        return self.previous_stac_asset["properties"]["uri"]
 
     def create_stac_asset(self):
         """
@@ -302,15 +294,6 @@ class StacStocktake:
         Compare the STAC Assets and FBI records
         """
         while True:
-            # if we reach the end of either the fbi or stac list get the next 10k results
-            if not self.fbi_path:
-                self.fbi_records = self.get_fbi_records()
-                self.next_fbi_record()
-
-            if not self.stac_path:
-                self.stac_assets = self.get_stac_assets()
-                self.next_stac_asset()
-
             # print and save every 1000 items
             if self.state.count % 1000 == 0:
                 log.info(
