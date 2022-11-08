@@ -72,7 +72,9 @@ class StacStocktake:
 
         # scan fbi and stac asset catalog
         self.fbi_records = self.get_fbi_records(self.state.fbi_record["path"])
-        self.stac_assets = self.get_stac_assets(self.state.stac_asset["stac_asset"])
+        self.stac_assets = self.get_stac_assets(
+            self.state.stac_asset["properties"]["uri"]
+        )
 
         # read first record and asset
         self.next_fbi_record()
