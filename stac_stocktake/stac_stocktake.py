@@ -281,7 +281,7 @@ class StacStocktake:
                 producer.publish(message)
 
         else:
-        self.generator.process(self.fbi_path)
+            self.generator.process(self.fbi_path)
 
     def delete_stac_asset(self):
         """
