@@ -215,13 +215,13 @@ class StacStocktake:
         """
         Get the next fbi record
         """
-        previous_fbi_record = self.state.fbi_record
+        previous_fbi_path = self.fbi_path
 
         self.state.fbi_record = next(self.fbi_records, {"properties": {"uri": ""}})
 
         # if we reach the end of the fbi records get the next 10k results
         if not self.fbi_path:
-            self.fbi_records = self.get_fbi_records(previous_fbi_record["path"])
+            self.fbi_records = self.get_fbi_records(previous_fbi_path)
             self.next_fbi_record()
 
         # if the documents' sort is empty you have reached the end of the search
@@ -235,15 +235,13 @@ class StacStocktake:
         """
         Get the next stac asset
         """
-        previous_stac_asset = self.state.stac_asset
+        previous_stac_path = self.stac_path
 
         self.state.stac_asset = next(self.stac_assets, {"properties": {"uri": ""}})
 
         # if we reach the end of the stac assets get the next 10k results
         if not self.stac_path:
-            self.stac_assets = self.get_stac_assets(
-                previous_stac_asset["properties"]["uri"]
-            )
+            self.stac_assets = self.get_stac_assets(previous_stac_path)
             self.next_stac_asset()
 
         # if the documents' sort is empty you have reached the end of the search
