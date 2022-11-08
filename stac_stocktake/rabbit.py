@@ -45,7 +45,7 @@ class RabbitConfiguration:
     @property
     def routing_key(self) -> str:
         """
-        Routing key of Rabbit
+        Routing key for Rabbit
         """
         return self._routing_key
 

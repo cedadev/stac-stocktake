@@ -277,11 +277,11 @@ class StacStocktake:
 
         if hasattr(self, "producer"):
             message = {"uri": self.fbi_path}
-
-            self.producer.publish(message)
+            with self.producer as producer:
+                producer.publish(message)
 
         else:
-            self.generator.process(self.fbi_path)
+        self.generator.process(self.fbi_path)
 
     def delete_stac_asset(self):
         """
