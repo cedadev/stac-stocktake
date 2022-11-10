@@ -170,6 +170,7 @@ class StacStocktake:
             Search(using="es", index=self.fbi_index)
             .source(["path"])
             .filter("term", type="file")
+            .exclude("exists", field="removed")
             .sort("path.keyword")
             .extra(size=10000)
         )
