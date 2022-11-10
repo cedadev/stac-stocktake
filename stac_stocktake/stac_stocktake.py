@@ -219,7 +219,7 @@ class StacStocktake:
         """
         previous_fbi_path = self.fbi_path
 
-        self.state.fbi_record = next(self.fbi_records, {"properties": {"uri": ""}})
+        self.state.fbi_record = next(self.fbi_records, {"path": ""})
 
         # if we reach the end of the fbi records get the next 10k results
         if not self.fbi_path:
