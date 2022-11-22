@@ -50,6 +50,8 @@ class StacStocktake:
             level=logging.getLevelName(log_conf.get("LEVEL")),
         )
 
+        self.stop_count = general_conf.get("STOP_COUNT")
+
         # Create either a rabbit producer or local stac generator
         if "RABBIT" in conf:
             rabbit_conf = conf.get("RABBIT")
@@ -301,6 +303,12 @@ class StacStocktake:
                     "%s: %s  ---  %s", self.state.count, self.fbi_path, self.stac_path
                 )
                 self.state.save()
+
+            if self.stop_count == self.state.count:
+                log.info("FIN")
+                self.state.save()
+                break
+
             self.state.count += 1
 
             # stop if end of both files

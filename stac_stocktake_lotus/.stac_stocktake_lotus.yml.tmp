@@ -1,0 +1,35 @@
+LOGGING:
+  LEVEL: INFO
+
+ELASTICSEARCH:
+  SESSION_KWARGS:
+    hosts: ["localhost:9200"]
+    timeout: 60
+    use_ssl: false
+    verify_certs: false
+    ssl_show_warn: false
+
+GENERAL:
+  FBI_INDEX: fbi
+  START_SLICE: 0
+  END_SLICE: 1
+  MAX_SLICES: 3
+
+  WORKING_DIRECTORY: /home/working/directory
+  DATA_DIRECTORY: /home/data/directory
+  SEARCH_PER_CHUNK: 5
+  SEARCH_SIZE: 10000
+
+  STAC_INDEX: stac-assets
+
+GENERATOR:
+  generator: asset
+
+  collection_descriptions:
+    root_directory: ../descriptions/
+
+  outputs:
+    - name: json_file
+      filepath: tests/file-io/assets.json
+    - name: text_file
+      filepath: tests/file-io/assets.txt
