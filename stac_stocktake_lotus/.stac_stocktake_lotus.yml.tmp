@@ -14,6 +14,7 @@ GENERAL:
   START_SLICE: 0
   END_SLICE: 1
   MAX_SLICES: 3
+  PIT_KEEP_ALIVE: 10m
 
   WORKING_DIRECTORY: /home/working/directory
   DATA_DIRECTORY: /home/data/directory

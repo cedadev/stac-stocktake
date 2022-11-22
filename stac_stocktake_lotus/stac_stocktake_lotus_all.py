@@ -46,9 +46,10 @@ def run_all():
     start_slice = general_conf.get("START_SLICE", 0)
     # end_slice can't exceed max_slices
     end_slice = min([general_conf.get("END_SLICE", max_slices) + 1, max_slices])
+    pit_keep_alive = general_conf.get("PIT_KEEP_ALIVE", "5m")
 
     es_client = Elasticsearch(**es_conf.get("SESSION_KWARGS"))
-    resp = es_client.open_point_in_time(index=fbi_index, keep_alive="5m")
+    resp = es_client.open_point_in_time(index=fbi_index, keep_alive=pit_keep_alive)
 
     pit_id = resp["id"]
 
