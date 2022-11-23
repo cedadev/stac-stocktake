@@ -103,13 +103,12 @@ def create_stac_asset(generator, fbi_path) -> None:
 
 
 @click.command()
-@click.option("-x", "--config_file", required=True, type=int, help="config file path.")
 @click.option("-s", "--slice_id", required=True, type=int, help="Id of slice.")
 @click.option("-c", "--chunk_id", required=True, type=int, help="Id of chunk.")
 @click.option("-a", "--after", required=True, type=str, help="Search_after for STAC.")
 @click.option("-f", "--first", required=True, type=bool, help="If first chunk.")
 def run_chunk(
-    config_file: str, slice_id: int, chunk_id: int, after: str, first: bool
+    slice_id: int, chunk_id: int, after: str, first: bool
 ) -> None:
     """
     Compare list of fbi paths to stac paths and create stac assets where
@@ -119,6 +118,8 @@ def run_chunk(
     :param chunk_id: id of chunk
     :param after: search_after for STAC
     """
+    config_file = os.environ["STAC_STOCKTAKE_CONFIGURATION_FILE"]
+
     with open(config_file, encoding="utf-8") as reader:
         conf = yaml.safe_load(reader)
 

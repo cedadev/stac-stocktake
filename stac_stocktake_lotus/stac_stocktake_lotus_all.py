@@ -34,6 +34,7 @@ def run_all():
             Path(__file__).parent,
             ".stac_stocktake_lotus.yml",
         )
+        os.environ["STAC_STOCKTAKE_CONFIGURATION_FILE"] = config_file
 
     with open(config_file, encoding="utf-8") as reader:
         conf = yaml.safe_load(reader)

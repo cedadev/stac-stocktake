@@ -102,12 +102,7 @@ def run_batch(slice_id: int, pit_id: str) -> None:
     :param pit_id: Elasticsearch point in time id
     """
 
-    config_file = os.environ.get("STAC_STOCKTAKE_CONFIGURATION_FILE")
-    if not config_file:
-        config_file = os.path.join(
-            Path(__file__).parent,
-            ".stac_stocktake_lotus.yml",
-        )
+    config_file = os.environ["STAC_STOCKTAKE_CONFIGURATION_FILE"]
 
     with open(config_file, encoding="utf-8") as reader:
         conf = yaml.safe_load(reader)
@@ -153,7 +148,7 @@ def run_batch(slice_id: int, pit_id: str) -> None:
                 f"sbatch -p {general_conf.get('QUEUE', 'short-serial')} "
                 f"-t {general_conf.get('WALLCLOCK', '00:10')} "
                 f"-o {output_directory}/standard.out -e {output_directory}/standard.err "
-                f"{working_directory}/stac_stocktake_lotus_chunk.py -x {config_file} "
+                f"{working_directory}/stac_stocktake_lotus_chunk.py "
                 f"-s {slice_id} -c {chunk} -a {stac_after} -f {first_batch}"
             )
 
