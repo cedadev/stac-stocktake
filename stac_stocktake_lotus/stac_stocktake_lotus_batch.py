@@ -152,7 +152,7 @@ def run_batch(slice_id: int, pit_id: str) -> None:
             slurm_command = (
                 f"sbatch -p {general_conf.get('QUEUE', 'short-serial')} "
                 f"-t {general_conf.get('WALLCLOCK', '00:10')} "
-                f"-o {output_directory}/standard.out -e {output_directory}/standard.err"
+                f"-o {output_directory}/standard.out -e {output_directory}/standard.err "
                 f"{working_directory}/stac_stocktake_lotus_chunk.py "
                 f"-s {slice_id} -c {chunk} -a {stac_after} -f {first_batch}"
             )
