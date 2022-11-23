@@ -177,7 +177,7 @@ def run_chunk(slice_id: int, chunk_id: int, after: str, first: bool) -> None:
                 new += 1
 
                 create_stac_asset(generator, fbi_path)
-                fbi_path = fbi_file.readline()
+                fbi_path = fbi_file.readline().strip()
 
             # if stac is behind read next stac line.
             elif stac_path < fbi_path:
@@ -191,7 +191,7 @@ def run_chunk(slice_id: int, chunk_id: int, after: str, first: bool) -> None:
             elif fbi_path == stac_path:
                 exists += 1
 
-                fbi_path = fbi_file.readline()
+                fbi_path = fbi_file.readline().strip()
                 stac_path, stac_assets = next_stac_path(
                     stac_path, stac_index, stac_assets
                 )
