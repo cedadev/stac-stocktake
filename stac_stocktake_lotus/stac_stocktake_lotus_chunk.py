@@ -25,7 +25,9 @@ from stac_generator.scripts.stac_generator import load_generator
 log = logging.getLogger(__name__)
 
 
-def get_stac_assets(stac_index: str, search_after: str) -> Iterator[dict]:
+def get_stac_assets(
+    stac_index: str, search_after: str, first: bool = False
+) -> Iterator[dict]:
     """
     Get the next 10k STAC Asset with a uri after `search_after`.
 
@@ -44,7 +46,10 @@ def get_stac_assets(stac_index: str, search_after: str) -> Iterator[dict]:
         .extra(size=10000)
     )
 
-    if search_after:
+    # First should include search_after so use range
+    if first:
+        query = query.filter("range", properties__uri__keyword={"gte": search_after})
+    else:
         query = query.extra(search_after=[search_after])
 
     response = query.execute()
@@ -101,7 +106,8 @@ def create_stac_asset(generator, fbi_path) -> None:
 @click.option("-s", "--slice_id", required=True, type=int, help="Id of slice.")
 @click.option("-c", "--chunk_id", required=True, type=int, help="Id of chunk.")
 @click.option("-a", "--after", required=True, type=str, help="Search_after for STAC.")
-def run_chunk(slice_id: int, chunk_id: int, after: str) -> None:
+@click.option("-f", "--first", required=True, type=bool, help="If first chunk.")
+def run_chunk(slice_id: int, chunk_id: int, after: str, first: bool) -> None:
     """
     Compare list of fbi paths to stac paths and create stac assets where
     necessary
@@ -143,8 +149,8 @@ def run_chunk(slice_id: int, chunk_id: int, after: str) -> None:
 
     with open(f"{chunk_directory}/input/data", "r", encoding="utf-8") as fbi_file:
 
-        fbi_path = fbi_file.readline()
-        stac_assets = get_stac_assets(stac_index, after)
+        fbi_path = fbi_file.readline().strip()
+        stac_assets = get_stac_assets(stac_index, after, first)
         stac_path, stac_assets = next_stac_path("", stac_index, stac_assets)
 
         count = 0
@@ -154,18 +160,18 @@ def run_chunk(slice_id: int, chunk_id: int, after: str) -> None:
 
         while True:
 
+            # if fbi has ended stop
+            if fbi_path == "":
+                break
+
+            count += 1
+
             # print and save every 1000 items
             if count % 10000 == 0:
                 log.info(
                     "%s  ---  %s | total: %s | new: %s | exists: %s | removed: %s",
-                    fbi_path, stac_path, count, new, exists, removed
+                    fbi_path, stac_path, count, new, exists, removed,
                 )
-
-            count += 1
-
-            # if fbi has ended stop
-            if fbi_path.strip() == "":
-                break
 
             # if stac has ended or the stac is ahead and there are fbi records left,
             # then we need to create a new asset.
@@ -191,6 +197,11 @@ def run_chunk(slice_id: int, chunk_id: int, after: str) -> None:
                 stac_path, stac_assets = next_stac_path(
                     stac_path, stac_index, stac_assets
                 )
+
+        log.info(
+            "CHUNK FINISHED: %s  ---  %s | total: %s | new: %s | exists: %s | removed: %s",
+            fbi_path, stac_path, count, new, exists, removed,
+        )
 
 
 if __name__ == "__main__":

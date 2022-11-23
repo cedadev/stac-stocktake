@@ -143,6 +143,8 @@ def run_batch(slice_id: int, pit_id: str) -> None:
         search_size, slice_id, max_slices, pit_id, search_after, input_directory
     )
 
+    first_batch = True
+
     while True:
         # submit to lotus
         if count % search_per_chunk == 0 or not search_after:
@@ -152,8 +154,10 @@ def run_batch(slice_id: int, pit_id: str) -> None:
                 f"-t {general_conf.get('WALLCLOCK', '00:10')} "
                 f"-o {output_directory}/standard.out -e {output_directory}/standard.err"
                 f"{working_directory}/stac_stocktake_lotus_chunk.py "
-                f"-s {slice_id} -c {chunk} -a {stac_after}"
+                f"-s {slice_id} -c {chunk} -a {stac_after} -f {first_batch}"
             )
+
+            first_batch = False
 
             subprocess.call(slurm_command, shell=True, env=os.environ)
             print(f"Batch {slice_id}: chunk {chunk} started")
