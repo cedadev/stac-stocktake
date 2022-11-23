@@ -84,7 +84,7 @@ def next_stac_path(
         next_stac_path(previous_stac_path, stac_index, stac_assets)
 
     # if the documents' sort is empty you have reached the end of the search
-    if not stac_asset.meta.sort[0]:
+    if hasattr(stac_asset, "meta") and not stac_asset.meta.sort[0]:
         return "~", stac_assets
 
     return stac_asset["properties"]["uri"], stac_assets
