@@ -14,7 +14,6 @@ __license__ = "BSD"
 
 import logging
 import os
-from pathlib import Path
 from typing import Iterator, Tuple
 
 import click
@@ -99,7 +98,11 @@ def create_stac_asset(generator, fbi_path) -> None:
 
     log.info("ADD_MISSING_STAC_ASSET: %s", fbi_path)
 
-    generator.process(fbi_path)
+    try:
+        generator.process(fbi_path)
+
+    except Exception:
+        logging.exception("FAILED TO ADD STAC ASSET: %s", fbi_path)
 
 
 @click.command()
