@@ -201,7 +201,7 @@ class StacStocktake:
         query = (
             Search(using="es", index=self.stac_index)
             .source(["properties.uri"])
-            .sort("properties.uri.keyword")
+            .sort({"properties.uri.keyword": {"unmapped_type": "keyword"}})
             .extra(size=10000)
         )
 
@@ -229,7 +229,7 @@ class StacStocktake:
             self.fbi_records = self.get_fbi_records(previous_fbi_path)
             self.next_fbi_record()
 
-        # if the documents' sort is empty you have reached the end of the search
+        # if the documents sort is empty you have reached the end of the search
         if (
             hasattr(self.state.fbi_record, "meta")
             and not self.state.fbi_record.meta.sort[0]
